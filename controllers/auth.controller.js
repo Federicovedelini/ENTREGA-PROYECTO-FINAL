@@ -1,7 +1,7 @@
 import { User } from "../models/User.js";
-import jwt from 'jsonwebtoken';
 import { generateRefreshToken, generateToken } from "../utils/TokenManager.js";
-import cookieParser from "cookie-parser";
+
+
 
 export const register = async(req, res) => { 
     const {email, password} = req.body
@@ -15,8 +15,10 @@ export const register = async(req, res) => {
       await user.save();
 
         //jwt token
+        const { token, expiresIn } = generateToken(user.id);
+        generateRefreshToken(user.id, res);
 
-        return res.status(201).json({ok:true});
+        return res.status(201).json({token, expiresIn});
     }catch (error){
         console.log(error.message);
         //alternativa por defecto en mongoose
@@ -41,7 +43,7 @@ export const login = async(req, res) => {
         //Generar Token JWT
 
         const {token, expiresIn} = generateToken(user.id);
-        generateRefreshToken(user.id,res)
+        generateRefreshToken(user.id, res);
 
         
 
@@ -68,32 +70,24 @@ export const infoUser = async (req, res) => {
 
 
 export const refreshToken = (req, res) => {
-  
     try {
-        const refreshTokenCookie = req.cookies.refreshToken;
-    if(!refreshTokenCookie) throw new Error("No existe token");
-
-    const {uid} = jwt.verify(refreshTokenCookie, process.env.JWT_REFRESH);
-    const {token, expiresIn} = generateToken(uid);
+       
+    const { token, expiresIn } = generateToken(req.uid);
 
     return res.json({ token, expiresIn});     
+
     } catch (error) {
-        console.log(error)
-        const TokenVerificationErrors ={
-            "invalid signature": "la firma del JWT no es valida",
-            "jwt expired": "JWT expirado",
-            "invalid token": "token no valido",
-            "No Bearer": "Utiliza formato Barer",
-            "jwt malformed": "JWT formato no valido",
-        };
-        return res
-        .status(401)
-        .send({error: TokenVerificationErrors[error.message]});
+        console.log(error);
+        return res.status(500).json( {error: "error de server"} );
+
     }
     
 };
 
 export const logout = (req, res) => {
-    res.clearCookie('refreshToken')
-    res.json({ok:true})
+    res.clearCookie("refreshToken");
+    res.json({ok:true});
 };
+
+
+
